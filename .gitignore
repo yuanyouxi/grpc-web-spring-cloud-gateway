@@ -2,3 +2,4 @@
 buildImage.sh
 Dockerfile
 /.idea/
+.DS_Store
