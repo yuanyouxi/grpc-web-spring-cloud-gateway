@@ -1,0 +1,4 @@
+/target/
+buildImage.sh
+Dockerfile
+/.idea/

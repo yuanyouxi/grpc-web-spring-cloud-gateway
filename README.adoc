@@ -1,0 +1,79 @@
+= gRPC-Web Spring Cloud Gateway
+
+Spring Cloud Gateway `3.1.1` supports for gRPC and HTTP/2.
+
+It is possible to use Spring Cloud Gateway to connect gRPC-Web and gRPC services. This project will show:
+
+* How SCG route gRPC-Web request to gRPC service without Envoy proxy.
+* How to integrate with Nacos and discover the gRPC service port.
+
+== Introduction to gRPC-Web
+
+With gRPC-Web we can use proto to generate JS lib for web project like https://vuejs.org/[VUE] to call gRPC services, but need a proxy like https://www.envoyproxy.io/[Envoy] or https://github.com/improbable-eng/grpc-web/tree/master/go/grpcwebproxy[golang proxy] to transfer gRPC-Web protocol to gRPC.
+
+Thanks to https://github.com/improbable-eng/grpc-web/tree/master/go/grpcwebproxy[golang proxy], get the idea how to do the protocol transform , and build the Gateway request/response filters with Java.
+
+== gRPC and Spring Cloud Gateway
+
+Please read https://spring.io/blog/2021/12/08/spring-cloud-gateway-and-grpc[spring-cloud-gateway-and-grpc], it shows how to use Spring Cloud Gateway gRPC-2-gRPC and JSON-2-gRPC
+
+== Getting started
+
+To prepare the basic, please read https://spring.io/blog/2021/12/08/spring-cloud-gateway-and-grpc[spring-cloud-gateway-and-grpc] gRPC-2-gRPC part, here we enable HTTP2 only without SSL
+[source,yaml]
+----
+server:
+  http2:
+    enabled: true
+----
+So web project will call Spring Cloud Gateway using HTTP1.1 without SSL, and Spring Cloud Gateway talk with backend gRPC service using HTTP2 with TLS1.2
+
+Here we trust all backend gRPC services.
+[source,yaml]
+----
+spring:
+  cloud:
+    gateway:
+      httpclient:
+        ssl:
+          use-insecure-trust-manager: true
+----
+The Spring Cloud Gateway Global  filter `RemoveHopByHopHeadersFilter` will remove `te` and `trailer` which need in gRPC especially for stream.
+[source,yaml]
+----
+spring:
+  cloud:
+    gateway:
+      filter:
+        remove-hop-by-hop:
+          headers:
+            - connection
+            - keep-alive
+            - transfer-encoding
+            - proxy-authenticate
+            - proxy-authorization
+            - x-application-context
+            - upgrade
+----
+Update `HEADERS_REMOVED_ON_REQUEST` list in yaml to skip `te` and `trailer`
+
+As we build the protocol transform filter as Global filters, introduce a metadata `grpcWeb` in route , the gRPC-Web related filters will only work when the metadata `grpcWeb` is true.
+[source,yaml]
+----
+      routes:
+        - id: grpc
+          metadata:
+            grpcWeb: true
+          uri: lb:https://greeter
+          predicates:
+            - Path=/Greeter/**
+          filters:
+            - GrpcLoadBalance=true
+----
+The GrpcLoadBalance is used to rebuild the target URI change the port to gRPC service port, as the common examples of gRPC springboot integrate with Nacos usually add spring boot web/webflux to support both REST and gRPC API.
+
+We can use gRPC in springboot without spring boot web/webflux , but when use Nacos or other Register/Discovery services, there are additional code needed to trigger the registration.
+
+Finally, come to protocol transform, need to decode request body decode, here use `ModifyRequestBodyGatewayFilterFactory` to do base64 decode , then modify the request headers.
+
+For response part, base64 encode chunk by chunk to support the service side stream, then modify the response headers.

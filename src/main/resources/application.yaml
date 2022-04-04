@@ -1,0 +1,41 @@
+spring:
+  application:
+    name: gateway
+  profiles:
+    active: dev
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+  cloud:
+    nacos:
+      discovery:
+        enabled: true
+    gateway:
+      filter:
+        remove-hop-by-hop:
+          headers:
+            - connection
+            - keep-alive
+            - transfer-encoding
+            - proxy-authenticate
+            - proxy-authorization
+            - x-application-context
+            - upgrade
+      httpclient:
+        ssl:
+          use-insecure-trust-manager: true
+      routes:
+        - id: grpc
+          metadata:
+            grpcWeb: true
+          uri: lb:https://greeter
+          predicates:
+            - Path=/Greeter/**
+          filters:
+            - GrpcLoadBalance=true
+server:
+  port: 8080
+  http2:
+    enabled: true
