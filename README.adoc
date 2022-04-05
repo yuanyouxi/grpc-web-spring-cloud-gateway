@@ -1,5 +1,8 @@
 = gRPC-Web Spring Cloud Gateway
 
+image:https://github.com/yuanyouxi/grpc-web-spring-cloud-gateway/actions/workflows/maven.yml/badge.svg[Build master branch]
+image:https://github.com/yuanyouxi/grpc-web-spring-cloud-gateway/actions/workflows/codeql-analysis.yml/badge.svg[codeql]
+
 Spring Cloud Gateway `3.1.1` supports for gRPC and HTTP/2.
 
 It is possible to use Spring Cloud Gateway to connect gRPC-Web and gRPC services. This project will show:
